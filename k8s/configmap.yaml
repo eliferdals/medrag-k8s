@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: medrag-config
+  namespace: medrag
+data:
+  # RAG parametreleri
+  CHUNK_SIZE: "800"
+  CHUNK_OVERLAP: "100"
+  TOP_K: "5"
+  
+  # Embedding modeli
+  EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2"
+  
+  # LLM ayarları
+  LLM_PROVIDER: "ollama"
+  LLM_MODEL: "phi3:mini"
+  OLLAMA_HOST: "http://ollama-service.medrag.svc.cluster.local:11434"
+  
+  # PubMed
+  PUBMED_EMAIL: "erdalselif@gmail.com"
+  
+  # Konular ve makale sayıları
+  TOPIC_METFORMIN_COUNT: "500"
+  TOPIC_WARFARIN_COUNT: "500"
+  TOPIC_PEDIATRIC_FEVER_COUNT: "500"
+  
+  # PostgreSQL bağlantı (CNPG cluster service adı)
+  PG_HOST: "medrag-postgres-rw.medrag.svc.cluster.local"
+  PG_PORT: "5432"
+  PG_DATABASE: "app"

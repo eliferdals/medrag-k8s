@@ -1,0 +1,38 @@
+# Core
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+python-dotenv==1.0.1
+
+# RAG / LangChain
+langchain==0.3.7
+langchain-community==0.3.5
+langchain-huggingface==0.1.2
+langchain-ollama==0.2.0
+chromadb==0.5.18
+sentence-transformers==3.2.1
+
+# PubMed API
+biopython==1.84
+
+# PostgreSQL
+asyncpg==0.30.0
+psycopg[binary]==3.2.3
+sqlalchemy==2.0.36
+
+# UI
+streamlit==1.40.0
+requests==2.32.3
+
+# Monitoring
+prometheus-client==0.21.0
+
+# Utilities
+tqdm==4.67.0
+pandas==2.2.3
+numpy==1.26.4
+
+# Development
+pytest==8.3.3
+ipykernel==6.29.5
+jupyter==1.1.1

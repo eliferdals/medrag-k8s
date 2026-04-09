@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: medrag
+  labels:
+    project: medrag
+    environment: development

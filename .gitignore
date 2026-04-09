@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environment & Secrets
+.env
+.env.local
+*.key
+secrets/
+credentials.json
+
+# Data files (büyük dosyaları repo'ya koyma)
+data/raw/
+data/chunks/
+data/chroma_db/
+*.pkl
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Helm
+helm/medrag/charts/
+helm/medrag/Chart.lock
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Kubernetes Secrets (NEVER commit)
+k8s/secret.yaml
