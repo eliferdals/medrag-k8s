@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: medrag-embedding
+  namespace: medrag
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: embedding
+        image: medrag-jobs:v1
+        imagePullPolicy: Never
+        command: ["python", "src/embedder.py"]
+        envFrom:
+        - configMapRef:
+            name: medrag-config
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: medrag-chroma-pvc

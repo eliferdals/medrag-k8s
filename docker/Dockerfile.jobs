@@ -1,0 +1,32 @@
+# Multi-stage: build stage + runtime stage
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+# Sadece job'lar için gerekli paketler
+RUN pip install --no-cache-dir --user \
+    biopython==1.84 \
+    langchain==0.3.7 \
+    langchain-huggingface==0.1.2 \
+    langchain-text-splitters==0.3.2 \
+    sentence-transformers==3.2.1 \
+    chromadb==0.5.18 \
+    tqdm==4.67.0
+
+# ---- Runtime stage ----
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Build stage'den paketleri kopyala
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
+
+# Kod
+COPY src/ /app/src/
+
+# Cache dizini (HuggingFace model cache için)
+ENV HF_HOME=/data/hf_cache
+ENV SENTENCE_TRANSFORMERS_HOME=/data/hf_cache
+
+CMD ["python", "src/data_collector.py"]
