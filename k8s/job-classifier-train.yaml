@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: medrag-classifier-train
+  namespace: medrag
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: classifier-train
+        image: medrag-jobs:v1
+        imagePullPolicy: Never
+        command: ["python", "src/query_classifier.py"]
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: medrag-chroma-pvc
