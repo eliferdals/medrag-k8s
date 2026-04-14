@@ -1,0 +1,282 @@
+# ============================================================================
+# MedRAG Helm values  —  HER ŞEY HELM'DE
+# Tek values.yaml, sub-chart yok, overlay yok.
+# CNPG cluster + PVC'ler + Jobs + Deployments + Ingress hepsi burada.
+# resource-policy:keep ile uninstall güvenli (veri silinmez).
+# ============================================================================
+
+global:
+  namespace: medrag
+  fsGroup: 1000
+
+# ----------------------------------------------------------------------------
+# Imagelar
+# ----------------------------------------------------------------------------
+images:
+  ragApi:
+    repository: medrag-rag
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  streamlit:
+    repository: medrag-streamlit
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  ollama:
+    repository: ollama/ollama
+    tag: "0.4.2"
+    pullPolicy: IfNotPresent
+  jobs:
+    repository: medrag-jobs
+    tag: "v1"
+    pullPolicy: IfNotPresent
+
+# ----------------------------------------------------------------------------
+# CNPG PostgreSQL  —  HELM İÇİNDE
+# ----------------------------------------------------------------------------
+cnpg:
+  enabled: true
+  clusterName: medrag-postgres
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  storage:
+    size: 1Gi
+    storageClass: ""
+  database: medrag
+  owner: medrag
+  initSQL: |
+    CREATE TABLE IF NOT EXISTS query_logs (
+      id SERIAL PRIMARY KEY,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      user_id TEXT,
+      question TEXT NOT NULL,
+      classifier_label INT,
+      classifier_score REAL,
+      answer TEXT,
+      model TEXT,
+      prompt_version TEXT,
+      retrieved_pmids TEXT[],
+      latency_ms INT,
+      prompt_tokens INT,
+      completion_tokens INT
+    );
+    CREATE INDEX IF NOT EXISTS idx_query_logs_created_at ON query_logs(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_query_logs_user_id ON query_logs(user_id);
+    ALTER TABLE query_logs OWNER TO medrag;
+
+postgres:
+  host: medrag-postgres-rw
+  port: 5432
+  existingSecret: medrag-postgres-app
+  secretKeys:
+    username: username
+    password: password
+    dbname: dbname
+
+# ----------------------------------------------------------------------------
+# Persistence (PVC'ler)
+# ----------------------------------------------------------------------------
+persistence:
+  chroma:
+    create: true
+    name: medrag-chroma-pvc
+    size: 2Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  ollama:
+    create: true
+    name: medrag-ollama-pvc
+    size: 10Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+
+# ----------------------------------------------------------------------------
+# Jobs (Faz 2 + 3 — zaten çalıştı, default kapalı)
+# ----------------------------------------------------------------------------
+jobs:
+  dataCollection:
+    enabled: false
+    backoffLimit: 2
+    command: ["python", "src/data_collector.py"]
+  embedding:
+    enabled: false
+    backoffLimit: 2
+    command: ["python", "src/embedder.py"]
+  classifierTrain:
+    enabled: false
+    backoffLimit: 2
+    command: ["python", "src/query_classifier.py"]
+
+# ----------------------------------------------------------------------------
+# App secret (JWT) — helm install sırasında --set ile ver
+# ----------------------------------------------------------------------------
+secrets:
+  create: true
+  name: rag-secret
+  jwtSecret: ""
+  ncbiApiKey: ""
+
+# ----------------------------------------------------------------------------
+# RAG API
+# ----------------------------------------------------------------------------
+ragApi:
+  enabled: true
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8000
+  resources:
+    requests: { cpu: "250m", memory: "1Gi" }
+    limits:   { cpu: "1",    memory: "2Gi" }
+  hpa:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  probes:
+    readiness:
+      path: /health
+      initialDelaySeconds: 20
+      periodSeconds: 10
+    liveness:
+      path: /health
+      initialDelaySeconds: 60
+      periodSeconds: 30
+  config:
+    CHROMA_PATH: "/data/chroma"
+    CHROMA_COLLECTION: "medrag"
+    CLASSIFIER_PATH: "/data/classifier/classifier.pkl"
+    CLASSIFIER_THRESHOLD: "0.70"
+    CLASSIFIER_POSITIVE_LABEL: "1"
+    OLLAMA_BASE_URL: "http://ollama.medrag.svc.cluster.local:11434"
+    OLLAMA_MODEL: "llama3.2:3b"
+    EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2"
+    HF_HOME: "/data/hf_cache"
+    SENTENCE_TRANSFORMERS_HOME: "/data/hf_cache"
+    PROMPT_VERSION: "v1"
+    PROMPTS_DIR: "/app/prompts"
+    LOG_LEVEL: "INFO"
+
+# ----------------------------------------------------------------------------
+# Prompts — prompt_loader.py'nin beklediği format: rag_prompt_v{N}.yaml
+# /app/prompts/ altına ConfigMap olarak mount edilir.
+# Aktif versiyonu ragApi.config.PROMPT_VERSION belirler.
+# ----------------------------------------------------------------------------
+prompts:
+  rag_prompt_v1.yaml: |
+    version: v1
+    created_at: 2026-04-14
+    description: İlk prod prompt. PMID citation zorunlu, context dışı soruda "bilmiyorum".
+    model: llama3.2:3b
+    temperature: 0.2
+
+    system: |
+      You are MedRAG, an assistant answering medical questions strictly from the
+      provided PubMed context. Rules:
+      1. Use ONLY the provided context. If the answer is not in the context,
+         reply exactly: "Bu soruya verilen bağlamda yeterli bilgi yok."
+      2. Cite every factual claim with [PMID: <id>].
+      3. Do NOT give diagnosis or treatment recommendations; describe what the
+         literature reports.
+      4. Keep answers concise (≤ 200 words).
+
+    user_template: |
+      Context:
+      {context}
+
+      Question: {question}
+
+      Answer (with [PMID: ...] citations):
+
+  rag_prompt_v2.yaml: |
+    version: v2
+    created_at: 2026-04-14
+    description: |
+      v1 + zorunlu yapı: "Findings" ve "Caveats" başlıkları. Sunumda daha temiz görünür.
+    model: llama3.2:3b
+    temperature: 0.2
+
+    system: |
+      You are MedRAG, an evidence-grounded medical literature assistant.
+      STRICT RULES:
+      1. Use ONLY the provided PubMed context below. If insufficient, reply:
+         "Bu soruya verilen bağlamda yeterli bilgi yok."
+      2. Structure your answer with two sections:
+         ### Findings
+         <2-4 sentences summarizing what the literature reports, each with [PMID: <id>]>
+         ### Caveats
+         <1-2 sentences on limitations, conflicting evidence, or scope>
+      3. Never give diagnosis or treatment instructions — describe findings only.
+      4. Total length ≤ 220 words.
+
+    user_template: |
+      Context:
+      {context}
+
+      Question: {question}
+
+      Answer:
+
+# ----------------------------------------------------------------------------
+# Ollama
+# ----------------------------------------------------------------------------
+ollama:
+  enabled: true
+  replicaCount: 1
+  model: "llama3.2:3b"
+  service:
+    type: ClusterIP
+    port: 11434
+  resources:
+    requests: { cpu: "500m", memory: "4Gi" }
+    limits:   { cpu: "2",    memory: "8Gi" }
+
+# ----------------------------------------------------------------------------
+# Streamlit
+# ----------------------------------------------------------------------------
+streamlit:
+  enabled: true
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8501
+    targetPort: 8501
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  config:
+    API_BASE_URL: "http://rag-api.medrag.svc.cluster.local"
+
+# ----------------------------------------------------------------------------
+# Ingress
+# ----------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  host: medrag.local
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+  paths:
+    ui:
+      path: /
+      pathType: Prefix
+    api:
+      path: /api
+      pathType: Prefix
+      stripPath: true
+  tls:
+    enabled: false
+    secretName: medrag-tls
+
+# ----------------------------------------------------------------------------
+# Monitoring
+# ----------------------------------------------------------------------------
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /metrics
+    labels:
+      release: prometheus

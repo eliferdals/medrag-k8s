@@ -1,0 +1,46 @@
+---
+# medrag.local üzerinden path-based routing
+#   /            → Streamlit (UI)
+#   /api/...     → FastAPI (RAG)
+#
+# Ön koşul: ingress-nginx kurulu olmalı. Kurulu değilse:
+#   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#   helm install ingress-nginx ingress-nginx/ingress-nginx \
+#     -n ingress-nginx --create-namespace
+#
+# Sonra Windows hosts dosyasına ekle (C:\Windows\System32\drivers\etc\hosts):
+#   127.0.0.1   medrag.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: medrag-ingress
+  namespace: medrag
+  annotations:
+    # /api/foo  →  rag-api'ye /foo olarak iletilir
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # LLM cevabı uzun sürebilir, timeout uzat
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "180"
+    # Streamlit WebSocket için
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: medrag.local
+      http:
+        paths:
+          # /api yolu rag-api Service'ine (port 80, target 8000)
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rag-api
+                port: { number: 80 }
+          # Geri kalan tüm yollar Streamlit'e
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: streamlit
+                port: { number: 8501 }

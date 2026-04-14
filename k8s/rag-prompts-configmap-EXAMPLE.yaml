@@ -1,0 +1,26 @@
+---
+# Prompts versiyonlanmış YAML olarak ConfigMap'te.
+# Yeni versiyon eklediğinde bu ConfigMap'i regenerate et:
+#   kubectl create configmap rag-prompts -n medrag \
+#     --from-file=prompts/ --dry-run=client -o yaml | kubectl apply -f -
+#
+# Bu dosya MANUEL EDIT için değil — örnek/referans amaçlı.
+# Asıl üretim akışı yukarıdaki tek satırlık komuttur.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rag-prompts
+  namespace: medrag
+data:
+  rag_prompt_v1.yaml: |
+    version: v1
+    created_at: 2026-04-14
+    description: İlk prod prompt. PMID citation zorunlu.
+    model: llama3.2:3b
+    temperature: 0.2
+    system: |
+      You are MedRAG... (kısaltıldı — gerçek içerik prompts/ klasöründen gelir)
+    user_template: |
+      Context: {context}
+      Question: {question}
+      Answer:

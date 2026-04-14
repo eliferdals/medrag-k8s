@@ -1,0 +1,23 @@
+{{- if and .Values.monitoring.serviceMonitor.enabled .Values.ragApi.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rag-api
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ include "medrag.namespace" . }}
+  selector:
+    matchLabels:
+      app: rag-api
+  endpoints:
+    - port: http
+      path: {{ .Values.monitoring.serviceMonitor.path }}
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+{{- end }}

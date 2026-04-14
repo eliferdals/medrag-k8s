@@ -1,0 +1,42 @@
+{{- if .Values.persistence.chroma.create }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.persistence.chroma.name }}
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+  annotations:
+    # Uninstall'da silinmesin — chroma verisi (4409 chunk) korunur
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.chroma.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.chroma.size }}
+  {{- if .Values.persistence.chroma.storageClass }}
+  storageClassName: {{ .Values.persistence.chroma.storageClass }}
+  {{- end }}
+{{- end }}
+---
+{{- if and .Values.ollama.enabled .Values.persistence.ollama.create }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.persistence.ollama.name }}
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - {{ .Values.persistence.ollama.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.ollama.size }}
+  {{- if .Values.persistence.ollama.storageClass }}
+  storageClassName: {{ .Values.persistence.ollama.storageClass }}
+  {{- end }}
+{{- end }}

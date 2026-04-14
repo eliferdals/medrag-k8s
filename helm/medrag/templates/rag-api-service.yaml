@@ -1,0 +1,48 @@
+{{- if .Values.ragApi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: rag-api
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: rag-api
+spec:
+  type: {{ .Values.ragApi.service.type }}
+  selector:
+    app: rag-api
+  ports:
+    - name: http
+      port: {{ .Values.ragApi.service.port }}
+      targetPort: {{ .Values.ragApi.service.targetPort }}
+---
+{{- if .Values.ragApi.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rag-api-hpa
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rag-api
+  minReplicas: {{ .Values.ragApi.hpa.minReplicas }}
+  maxReplicas: {{ .Values.ragApi.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.ragApi.hpa.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.ragApi.hpa.targetMemoryUtilizationPercentage }}
+{{- end }}
+{{- end }}

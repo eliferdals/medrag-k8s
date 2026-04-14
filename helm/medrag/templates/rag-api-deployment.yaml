@@ -1,0 +1,99 @@
+{{- if .Values.ragApi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-api
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: rag-api
+spec:
+  replicas: {{ .Values.ragApi.replicaCount }}
+  selector:
+    matchLabels:
+      app: rag-api
+  template:
+    metadata:
+      labels:
+        {{- include "medrag.selectorLabels" . | nindent 8 }}
+        app: rag-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+        checksum/config: {{ include (print $.Template.BasePath "/rag-config.yaml") . | sha256sum }}
+        checksum/prompts: {{ include (print $.Template.BasePath "/rag-prompts-config.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        fsGroup: {{ .Values.global.fsGroup }}
+      # CNPG cluster'ı hazır olana kadar bekle
+      {{- if .Values.cnpg.enabled }}
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z {{ .Values.postgres.host }} {{ .Values.postgres.port }}; do
+                echo "waiting for postgres..."
+                sleep 3
+              done
+              echo "postgres ready"
+      {{- end }}
+      containers:
+        - name: rag-api
+          image: "{{ .Values.images.ragApi.repository }}:{{ .Values.images.ragApi.tag }}"
+          imagePullPolicy: {{ .Values.images.ragApi.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: rag-config
+            - secretRef:
+                name: {{ .Values.secrets.name }}
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.secretKeys.username }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.secretKeys.password }}
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.secretKeys.dbname }}
+          resources:
+            {{- toYaml .Values.ragApi.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.ragApi.probes.readiness.path }}
+              port: 8000
+            initialDelaySeconds: {{ .Values.ragApi.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.ragApi.probes.readiness.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.ragApi.probes.liveness.path }}
+              port: 8000
+            initialDelaySeconds: {{ .Values.ragApi.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.ragApi.probes.liveness.periodSeconds }}
+          volumeMounts:
+            - name: chroma
+              mountPath: /data
+            - name: prompts
+              mountPath: /app/prompts
+              readOnly: true
+      volumes:
+        - name: chroma
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.chroma.name }}
+        - name: prompts
+          configMap:
+            name: rag-prompts
+{{- end }}

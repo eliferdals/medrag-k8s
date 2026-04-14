@@ -1,0 +1,72 @@
+{{- if .Values.streamlit.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streamlit-config
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: streamlit
+data:
+  API_BASE_URL: {{ .Values.streamlit.config.API_BASE_URL | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: streamlit
+spec:
+  replicas: {{ .Values.streamlit.replicaCount }}
+  selector:
+    matchLabels:
+      app: streamlit
+  template:
+    metadata:
+      labels:
+        app: streamlit
+    spec:
+      containers:
+        - name: streamlit
+          image: "{{ .Values.images.streamlit.repository }}:{{ .Values.images.streamlit.tag }}"
+          imagePullPolicy: {{ .Values.images.streamlit.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.streamlit.service.targetPort }}
+          envFrom:
+            - configMapRef:
+                name: streamlit-config
+          resources:
+            {{- toYaml .Values.streamlit.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: {{ .Values.streamlit.service.targetPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: {{ .Values.streamlit.service.targetPort }}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: streamlit
+spec:
+  type: {{ .Values.streamlit.service.type }}
+  selector:
+    app: streamlit
+  ports:
+    - name: http
+      port: {{ .Values.streamlit.service.port }}
+      targetPort: {{ .Values.streamlit.service.targetPort }}
+{{- end }}

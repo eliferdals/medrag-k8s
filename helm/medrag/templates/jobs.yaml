@@ -1,0 +1,108 @@
+{{- if .Values.jobs.dataCollection.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-collection
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    job: data-collection
+  annotations:
+    # Her helm upgrade'de YENİDEN ÇALIŞSIN istemiyorsan değeri sabit bırak;
+    # yeniden koşturmak için değeri değiştir (ör. date koy).
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.jobs.dataCollection.backoffLimit }}
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        fsGroup: {{ .Values.global.fsGroup }}
+      containers:
+        - name: data-collection
+          image: "{{ .Values.images.jobs.repository }}:{{ .Values.images.jobs.tag }}"
+          imagePullPolicy: {{ .Values.images.jobs.pullPolicy }}
+          command: {{ toJson .Values.jobs.dataCollection.command }}
+          envFrom:
+            - configMapRef: { name: rag-config }
+            - secretRef: { name: {{ .Values.secrets.name }} }
+            - secretRef: { name: medrag-secrets, optional: true }
+          volumeMounts:
+            - { name: chroma, mountPath: /data }
+      volumes:
+        - name: chroma
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.chroma.name }}
+{{- end }}
+---
+{{- if .Values.jobs.embedding.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: embedding
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    job: embedding
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "2"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.jobs.embedding.backoffLimit }}
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        fsGroup: {{ .Values.global.fsGroup }}
+      containers:
+        - name: embedding
+          image: "{{ .Values.images.jobs.repository }}:{{ .Values.images.jobs.tag }}"
+          imagePullPolicy: {{ .Values.images.jobs.pullPolicy }}
+          command: {{ toJson .Values.jobs.embedding.command }}
+          envFrom:
+            - configMapRef: { name: rag-config }
+          volumeMounts:
+            - { name: chroma, mountPath: /data }
+      volumes:
+        - name: chroma
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.chroma.name }}
+{{- end }}
+---
+{{- if .Values.jobs.classifierTrain.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: classifier-train
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    job: classifier-train
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.jobs.classifierTrain.backoffLimit }}
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        fsGroup: {{ .Values.global.fsGroup }}
+      containers:
+        - name: classifier-train
+          image: "{{ .Values.images.jobs.repository }}:{{ .Values.images.jobs.tag }}"
+          imagePullPolicy: {{ .Values.images.jobs.pullPolicy }}
+          command: {{ toJson .Values.jobs.classifierTrain.command }}
+          envFrom:
+            - configMapRef: { name: rag-config }
+          volumeMounts:
+            - { name: chroma, mountPath: /data }
+      volumes:
+        - name: chroma
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.chroma.name }}
+{{- end }}

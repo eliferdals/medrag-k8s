@@ -1,0 +1,99 @@
+{{- if .Values.ollama.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: ollama
+spec:
+  replicas: {{ .Values.ollama.replicaCount }}
+  selector:
+    matchLabels:
+      app: ollama
+  strategy:
+    type: Recreate   # PVC ReadWriteOnce → RollingUpdate deadlock olur
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      securityContext:
+        fsGroup: {{ .Values.global.fsGroup }}
+      # Model yoksa ilk pull'u initContainer yapsın
+      initContainers:
+        - name: model-puller
+          image: "{{ .Values.images.ollama.repository }}:{{ .Values.images.ollama.tag }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              /bin/ollama serve &
+              PID=$!
+              # servisin açılmasını bekle
+              until /bin/ollama list >/dev/null 2>&1; do sleep 2; done
+              # model var mı?
+              if ! /bin/ollama list | grep -q "{{ .Values.ollama.model }}"; then
+                echo "Pulling {{ .Values.ollama.model }}..."
+                /bin/ollama pull {{ .Values.ollama.model }}
+              else
+                echo "{{ .Values.ollama.model }} zaten mevcut, atlanıyor."
+              fi
+              kill $PID
+              wait $PID 2>/dev/null || true
+          env:
+            - name: OLLAMA_MODELS
+              value: /root/.ollama/models
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      containers:
+        - name: ollama
+          image: "{{ .Values.images.ollama.repository }}:{{ .Values.images.ollama.tag }}"
+          imagePullPolicy: {{ .Values.images.ollama.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 11434
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0:11434"
+            - name: OLLAMA_MODELS
+              value: /root/.ollama/models
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: 11434
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 11434
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.ollama.name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: ollama
+spec:
+  type: {{ .Values.ollama.service.type }}
+  selector:
+    app: ollama
+  ports:
+    - name: http
+      port: {{ .Values.ollama.service.port }}
+      targetPort: 11434
+{{- end }}

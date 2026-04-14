@@ -1,0 +1,33 @@
+
+🎉 MedRAG kuruldu: {{ .Release.Name }} / namespace: {{ include "medrag.namespace" . }}
+
+Durum:
+  kubectl -n {{ include "medrag.namespace" . }} get pods
+  kubectl -n {{ include "medrag.namespace" . }} get svc
+  kubectl -n {{ include "medrag.namespace" . }} get hpa
+  {{- if .Values.ingress.enabled }}
+  kubectl -n {{ include "medrag.namespace" . }} get ingress
+  {{- end }}
+
+{{- if .Values.ingress.enabled }}
+
+🌐 Ingress:
+  /etc/hosts içine (Windows: C:\Windows\System32\drivers\etc\hosts) şunu ekle:
+    127.0.0.1  {{ .Values.ingress.host }}
+
+  UI:        http://{{ .Values.ingress.host }}/
+  API health: http://{{ .Values.ingress.host }}/api/health
+  API docs:  http://{{ .Values.ingress.host }}/api/docs
+
+{{- else }}
+
+🌐 Ingress devre dışı. Test için port-forward:
+  kubectl -n {{ include "medrag.namespace" . }} port-forward svc/streamlit 8501:8501
+  kubectl -n {{ include "medrag.namespace" . }} port-forward svc/rag-api 8000:80
+
+{{- end }}
+
+📝 Logları izle:
+  kubectl -n {{ include "medrag.namespace" . }} logs -f deploy/rag-api
+  kubectl -n {{ include "medrag.namespace" . }} logs -f deploy/streamlit
+  kubectl -n {{ include "medrag.namespace" . }} logs -f deploy/ollama

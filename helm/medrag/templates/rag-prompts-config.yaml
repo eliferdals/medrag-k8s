@@ -1,0 +1,15 @@
+{{- if .Values.ragApi.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rag-prompts
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: rag-api
+data:
+{{- range $filename, $content := .Values.prompts }}
+  {{ $filename }}: |-
+{{ $content | indent 4 }}
+{{- end }}
+{{- end }}

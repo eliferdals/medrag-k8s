@@ -1,0 +1,17 @@
+{{- if .Values.ragApi.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rag-config
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+    app: rag-api
+data:
+  # DB bağlantısı — CNPG service üzerinden
+  DB_HOST: {{ printf "%s.%s.svc.cluster.local" .Values.postgres.host (include "medrag.namespace" .) | quote }}
+  DB_PORT: {{ .Values.postgres.port | quote }}
+  {{- range $k, $v := .Values.ragApi.config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+{{- end }}

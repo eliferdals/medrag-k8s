@@ -1,0 +1,42 @@
+{{- if .Values.cnpg.enabled }}
+# Init SQL'i ConfigMap olarak tut, CNPG bootstrap.initdb.postInitApplicationSQLRefs ile çeker
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.cnpg.clusterName }}-init-sql
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/resource-policy": keep
+data:
+  init.sql: |-
+{{ .Values.cnpg.initSQL | indent 4 }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.cnpg.clusterName }}
+  namespace: {{ include "medrag.namespace" . }}
+  labels:
+    {{- include "medrag.labels" . | nindent 4 }}
+  annotations:
+    # Uninstall'da cluster + DB verisi silinmesin
+    "helm.sh/resource-policy": keep
+spec:
+  instances: {{ .Values.cnpg.instances }}
+  imageName: {{ .Values.cnpg.imageName }}
+  storage:
+    size: {{ .Values.cnpg.storage.size }}
+    {{- if .Values.cnpg.storage.storageClass }}
+    storageClass: {{ .Values.cnpg.storage.storageClass }}
+    {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.cnpg.database }}
+      owner: {{ .Values.cnpg.owner }}
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - name: {{ .Values.cnpg.clusterName }}-init-sql
+            key: init.sql
+{{- end }}
