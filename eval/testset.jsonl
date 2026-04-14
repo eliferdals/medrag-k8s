@@ -1,0 +1,5 @@
+{"question": "What is the first-line treatment for type 2 diabetes?", "ground_truth": "Metformin is recommended as first-line pharmacological therapy for most patients with type 2 diabetes.", "ground_truth_pmids": []}
+{"question": "How does metformin affect HbA1c?", "ground_truth": "Metformin typically reduces HbA1c by approximately 1-2% in patients with type 2 diabetes.", "ground_truth_pmids": []}
+{"question": "What are contraindications for ACE inhibitors?", "ground_truth": "Pregnancy, bilateral renal artery stenosis, and history of angioedema are key contraindications for ACE inhibitors.", "ground_truth_pmids": []}
+{"question": "What is the role of statins in cardiovascular prevention?", "ground_truth": "Statins reduce LDL cholesterol and lower the risk of cardiovascular events in both primary and secondary prevention.", "ground_truth_pmids": []}
+{"question": "How is hypertension diagnosed?", "ground_truth": "Hypertension is diagnosed when systolic blood pressure is consistently 130 mmHg or higher, or diastolic 80 mmHg or higher, on multiple measurements.", "ground_truth_pmids": []}
