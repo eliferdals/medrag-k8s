@@ -1,0 +1,103 @@
+{
+  "title": "MedRAG Query Logs",
+  "tags": ["medrag", "postgres"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": {"from": "now-24h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Toplam Sorgu Sayısı (24s)",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-MedRAG"},
+      "targets": [{
+        "rawSql": "SELECT COUNT(*) FROM query_logs WHERE created_at > NOW() - INTERVAL '24 hours'",
+        "format": "table",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}},
+      "options": {"colorMode": "value", "graphMode": "area"}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Ortalama Latency (ms)",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-MedRAG"},
+      "targets": [{
+        "rawSql": "SELECT AVG(latency_ms)::int FROM query_logs WHERE created_at > NOW() - INTERVAL '24 hours'",
+        "format": "table",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "ms", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 5000}, {"color": "red", "value": 15000}]}}},
+      "options": {"colorMode": "value", "graphMode": "area"}
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Reddedilen Sorgu Sayısı",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-MedRAG"},
+      "targets": [{
+        "rawSql": "SELECT COUNT(*) FROM query_logs WHERE classifier_label = 'non-medical' AND created_at > NOW() - INTERVAL '24 hours'",
+        "format": "table",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}}},
+      "options": {"colorMode": "value", "graphMode": "none"}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Aktif Kullanıcı Sayısı",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-MedRAG"},
+      "targets": [{
+        "rawSql": "SELECT COUNT(DISTINCT user_id) FROM query_logs WHERE created_at > NOW() - INTERVAL '24 hours'",
+        "format": "table",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "purple", "value": null}]}}},
+      "options": {"colorMode": "value", "graphMode": "none"}
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Son 10 Sorgu",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 4},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-MedRAG"},
+      "targets": [{
+        "rawSql": "SELECT created_at AS \"Zaman\", username AS \"Kullanıcı\", question AS \"Soru\", classifier_label AS \"Sınıf\", classifier_score AS \"Skor\", latency_ms AS \"Latency (ms)\", model AS \"Model\" FROM query_logs ORDER BY created_at DESC LIMIT 10",
+        "format": "table",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "En Çok Sorulan İlk 10 Soru",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-MedRAG"},
+      "targets": [{
+        "rawSql": "SELECT LEFT(question, 60) AS soru, COUNT(*) AS adet FROM query_logs GROUP BY question ORDER BY adet DESC LIMIT 10",
+        "format": "table",
+        "refId": "A"
+      }],
+      "options": {"orientation": "horizontal", "xTickLabelRotation": 0}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Sorgu Sayısı Zaman İçinde",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "datasource": {"type": "postgres", "uid": "PostgreSQL-MedRAG"},
+      "targets": [{
+        "rawSql": "SELECT date_trunc('minute', created_at) AS time, COUNT(*) AS sorgu FROM query_logs WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1",
+        "format": "time_series",
+        "refId": "A"
+      }]
+    }
+  ]
+}

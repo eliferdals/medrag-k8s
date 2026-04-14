@@ -144,9 +144,11 @@ ragApi:
       initialDelaySeconds: 60
       periodSeconds: 30
   config:
-    CHROMA_PATH: "/data/chroma"
+    CHROMA_PATH: "/data/chroma_db"
+    CHROMA_DIR: "/data/chroma_db"
     CHROMA_COLLECTION: "medrag"
-    CLASSIFIER_PATH: "/data/classifier/classifier.pkl"
+    COLLECTION_NAME: "medrag"
+    CLASSIFIER_PATH: "/data/models/query_classifier.pkl"
     CLASSIFIER_THRESHOLD: "0.70"
     CLASSIFIER_POSITIVE_LABEL: "1"
     OLLAMA_BASE_URL: "http://ollama.medrag.svc.cluster.local:11434"
