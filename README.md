@@ -1,6 +1,6 @@
 # MedRAG — Kubernetes Üzerinde Tıbbi RAG Sistemi
 
-![Uploading Gemini_Generated_Image_yhtw3qyhtw3qyhtw.png…]()
+
 
 
 PubMed makalelerini bilgi kaynağı olarak kullanan, tıbbi soruları yanıtlayan bir RAG (Retrieval-Augmented Generation) sistemi. Tüm bileşenler Kubernetes üzerinde çalışır.
