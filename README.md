@@ -1,6 +1,6 @@
 # MedRAG — Kubernetes Üzerinde Tıbbi RAG Sistemi
 
-![mimarik8s](images/mimarik8s.png)
+![mimarik8s](./images/mimarik8s.png)
 
 PubMed makalelerini bilgi kaynağı olarak kullanan, tıbbi soruları yanıtlayan bir RAG (Retrieval-Augmented Generation) sistemi. Tüm bileşenler Kubernetes üzerinde çalışır.
 
